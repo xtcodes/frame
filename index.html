@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Twibbon Creator</title>
   <style>
     body {
       font-family: sans-serif;
       text-align: center;
       padding: 1rem;
-      background: #f4f4f4;
+      background: #f2f2f2;
     }
     canvas {
       border: 1px solid #ccc;
@@ -20,7 +20,7 @@
       margin-top: 1rem;
     }
     #notice {
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.75);
       color: white;
       padding: 1rem;
       margin-top: 1rem;
@@ -37,9 +37,7 @@
 
   <div id="notice"></div>
 
-  <div>
-    <canvas id="canvas" width="800" height="800"></canvas>
-  </div>
+  <canvas id="canvas" width="800" height="800"></canvas>
 
   <div id="controls">
     <button id="downloadBtn">Unduh</button>
@@ -50,9 +48,7 @@
     const config = {
       canvas: { width: 800, height: 800 },
       twibbon: { default: "twibbon.png", requireTransparency: true },
-      validation: {
-        allowedImageTypes: ["image/jpeg", "image/png"]
-      },
+      validation: { allowedImageTypes: ["image/jpeg", "image/png"] },
       watermark: {
         text: "Twibbon by Komunitas",
         color: "#ffffff",
@@ -83,10 +79,7 @@
     let userImage = null;
     let twibbonImage = new Image();
     let isInteracting = false;
-    let offsetX = 0, offsetY = 0;
-    let lastX = 0, lastY = 0;
-    let scale = 1;
-    let lastDist = 0;
+    let offsetX = 0, offsetY = 0, lastX = 0, lastY = 0, scale = 1, lastDist = 0;
     let pointers = [];
 
     twibbonImage.src = config.twibbon.default;
@@ -98,39 +91,44 @@
       setTimeout(() => notice.style.display = 'none', 3000);
     }
 
-    function drawCanvas(withWatermark = false) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    function drawCanvas() {
+      drawToContext(ctx, false);
+    }
+
+    function drawToContext(context, withWatermark = false) {
+      context.clearRect(0, 0, canvas.width, canvas.height);
+
       if (userImage) {
         const iw = userImage.width * scale;
         const ih = userImage.height * scale;
         const ix = (canvas.width - iw) / 2 + offsetX;
         const iy = (canvas.height - ih) / 2 + offsetY;
-        ctx.drawImage(userImage, ix, iy, iw, ih);
+        context.drawImage(userImage, ix, iy, iw, ih);
       }
 
       if (twibbonImage.complete) {
-        ctx.globalAlpha = isInteracting ? 0.5 : 1.0;
-        ctx.drawImage(twibbonImage, 0, 0, canvas.width, canvas.height);
-        ctx.globalAlpha = 1.0;
+        context.globalAlpha = isInteracting ? 0.5 : 1.0;
+        context.drawImage(twibbonImage, 0, 0, canvas.width, canvas.height);
+        context.globalAlpha = 1.0;
       }
 
       if (withWatermark) {
-        const padding = config.watermark.padding;
-        ctx.fillStyle = config.watermark.background;
-        ctx.font = config.watermark.font;
+        const pad = config.watermark.padding;
+        context.fillStyle = config.watermark.background;
+        context.font = config.watermark.font;
         const text = config.watermark.text;
-        const textMetrics = ctx.measureText(text);
-        const boxWidth = textMetrics.width + padding * 2;
-        const boxHeight = 20 + padding * 2;
-        const x = canvas.width - boxWidth - 10;
-        const y = canvas.height - boxHeight - 10;
-        ctx.fillRect(x, y, boxWidth, boxHeight);
-        ctx.fillStyle = config.watermark.color;
-        ctx.fillText(text, x + padding, y + boxHeight - padding - 4);
+        const textWidth = context.measureText(text).width;
+        const boxW = textWidth + pad * 2;
+        const boxH = 20 + pad * 2;
+        const x = canvas.width - boxW - 10;
+        const y = canvas.height - boxH - 10;
+        context.fillRect(x, y, boxW, boxH);
+        context.fillStyle = config.watermark.color;
+        context.fillText(text, x + pad, y + boxH - pad - 4);
       }
     }
 
-    imageInput.addEventListener('change', (e) => {
+    imageInput.addEventListener('change', e => {
       const file = e.target.files[0];
       if (!file || !config.validation.allowedImageTypes.includes(file.type)) return;
       const reader = new FileReader();
@@ -139,11 +137,8 @@
         userImage.onload = () => {
           resetTransform();
           drawCanvas();
-          // Tampilkan tombol bagikan jika didukung
           if (navigator.canShare && navigator.canShare({ files: [new File([""], "test.png", { type: "image/png" })] })) {
             shareBtn.style.display = "inline-block";
-          } else {
-            shareBtn.style.display = "none";
           }
         };
         userImage.src = reader.result;
@@ -151,7 +146,7 @@
       reader.readAsDataURL(file);
     });
 
-    twibbonInput.addEventListener('change', (e) => {
+    twibbonInput.addEventListener('change', e => {
       const file = e.target.files[0];
       if (!file || file.type !== "image/png") {
         showNotice(config.messages.invalidTwibbon);
@@ -181,9 +176,7 @@
     });
 
     function resetTransform() {
-      offsetX = 0;
-      offsetY = 0;
-      scale = 1;
+      offsetX = 0; offsetY = 0; scale = 1;
     }
 
     canvas.addEventListener("pointerdown", (e) => {
@@ -234,27 +227,32 @@
 
     canvas.addEventListener("wheel", (e) => {
       e.preventDefault();
-      const delta = e.deltaY < 0 ? 1.1 : 0.9;
-      scale *= delta;
+      scale *= (e.deltaY < 0) ? 1.1 : 0.9;
       drawCanvas();
     });
 
     downloadBtn.addEventListener('click', () => {
       if (!userImage) return showNotice(config.messages.noImage);
-      drawCanvas(true);
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      const tempCtx = tempCanvas.getContext('2d');
+      drawToContext(tempCtx, true);
       const link = document.createElement('a');
       link.download = config.share.filename;
-      link.href = canvas.toDataURL('image/png');
+      link.href = tempCanvas.toDataURL('image/png');
       link.click();
-      drawCanvas();
     });
 
     shareBtn.addEventListener('click', async () => {
       if (!userImage) return showNotice(config.messages.noImage);
-
       try {
-        drawCanvas(true);
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        drawToContext(tempCtx, true);
+        const blob = await new Promise(resolve => tempCanvas.toBlob(resolve, 'image/png'));
         const file = new File([blob], config.share.filename, { type: 'image/png' });
 
         if (!navigator.canShare || !navigator.canShare({ files: [file] })) {
@@ -264,15 +262,14 @@
         await navigator.share({
           title: config.share.title,
           text: config.share.text,
-          files: [file],
+          files: [file]
         });
       } catch (err) {
         console.error("Gagal membagikan:", err);
         showNotice("Gagal membagikan: " + err.message);
-      } finally {
-        drawCanvas();
       }
     });
   </script>
+
 </body>
 </html>
