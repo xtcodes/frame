@@ -14,6 +14,7 @@
     canvas {
       border: 1px solid #ccc;
       max-width: 100%;
+      touch-action: none;
     }
     #controls {
       margin-top: 1rem;
@@ -93,6 +94,17 @@
 
     let userImage = null;
     let twibbonImage = new Image();
+    let isInteracting = false;
+
+    // Transform control
+    let offsetX = 0, offsetY = 0;
+    let lastX = 0, lastY = 0;
+    let scale = 1;
+    let lastDist = 0;
+
+    let dragging = false;
+    let pointers = [];
+
     twibbonImage.src = config.twibbon.default;
     twibbonImage.onload = drawCanvas;
 
@@ -105,13 +117,17 @@
     function drawCanvas() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       if (userImage) {
-        const scale = Math.max(canvas.width / userImage.width, canvas.height / userImage.height);
-        const x = (canvas.width / 2) - (userImage.width / 2) * scale;
-        const y = (canvas.height / 2) - (userImage.height / 2) * scale;
-        ctx.drawImage(userImage, x, y, userImage.width * scale, userImage.height * scale);
+        const iw = userImage.width * scale;
+        const ih = userImage.height * scale;
+        const ix = (canvas.width - iw) / 2 + offsetX;
+        const iy = (canvas.height - ih) / 2 + offsetY;
+        ctx.drawImage(userImage, ix, iy, iw, ih);
       }
+
       if (twibbonImage.complete) {
+        ctx.globalAlpha = isInteracting ? 0.5 : 1.0;
         ctx.drawImage(twibbonImage, 0, 0, canvas.width, canvas.height);
+        ctx.globalAlpha = 1.0;
       }
     }
 
@@ -122,6 +138,7 @@
       reader.onload = () => {
         userImage = new Image();
         userImage.onload = () => {
+          resetTransform();
           drawCanvas();
           shareBtn.style.display = navigator.canShare ? "inline-block" : "none";
         };
@@ -157,6 +174,67 @@
         tempImg.src = reader.result;
       };
       reader.readAsDataURL(file);
+    });
+
+    function resetTransform() {
+      offsetX = 0;
+      offsetY = 0;
+      scale = 1;
+    }
+
+    // Pointer Events
+    canvas.addEventListener("pointerdown", (e) => {
+      canvas.setPointerCapture(e.pointerId);
+      pointers.push(e);
+      if (pointers.length === 1) {
+        lastX = e.clientX;
+        lastY = e.clientY;
+      }
+      if (pointers.length === 2) {
+        lastDist = getDistance(pointers[0], pointers[1]);
+      }
+      isInteracting = true;
+    });
+
+    canvas.addEventListener("pointermove", (e) => {
+      const idx = pointers.findIndex(p => p.pointerId === e.pointerId);
+      if (idx >= 0) pointers[idx] = e;
+
+      if (pointers.length === 1) {
+        let dx = e.clientX - lastX;
+        let dy = e.clientY - lastY;
+        offsetX += dx;
+        offsetY += dy;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        drawCanvas();
+      } else if (pointers.length === 2) {
+        const newDist = getDistance(pointers[0], pointers[1]);
+        const zoom = newDist / lastDist;
+        scale *= zoom;
+        lastDist = newDist;
+        drawCanvas();
+      }
+    });
+
+    canvas.addEventListener("pointerup", (e) => {
+      pointers = pointers.filter(p => p.pointerId !== e.pointerId);
+      if (pointers.length === 0) {
+        isInteracting = false;
+        drawCanvas();
+      }
+    });
+
+    function getDistance(p1, p2) {
+      return Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
+    }
+
+    // Zoom via mouse scroll
+    canvas.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 1.1 : 0.9;
+      scale *= delta;
+      drawCanvas();
     });
 
     downloadBtn.addEventListener('click', () => {
