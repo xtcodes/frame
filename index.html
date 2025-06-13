@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Twibbon Creator</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 1rem;
+      background: #f4f4f4;
+    }
+    canvas {
+      border: 1px solid #ccc;
+      max-width: 100%;
+    }
+    #controls {
+      margin-top: 1rem;
+    }
+    #watermark {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      padding: 5px 10px;
+      font: 14px sans-serif;
+      display: none;
+    }
+    #notice {
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 1rem;
+      margin-top: 1rem;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Twibbon Creator</h1>
+
+  <input type="file" id="imageInput" accept="image/jpeg,image/png">
+  <input type="file" id="twibbonInput" accept="image/png">
+
+  <div id="notice"></div>
+
+  <div style="position: relative; display: inline-block;">
+    <canvas id="canvas" width="800" height="800"></canvas>
+    <div id="watermark">Twibbon by Komunitas</div>
+  </div>
+
+  <div id="controls">
+    <button id="downloadBtn">Unduh</button>
+    <button id="shareBtn" style="display: none;">Bagikan</button>
+  </div>
+
+  <script>
+    const config = {
+      canvas: { width: 800, height: 800 },
+      twibbon: { default: "twibbon.png", requireTransparency: true },
+      validation: {
+        allowedImageTypes: ["image/jpeg", "image/png"]
+      },
+      watermark: {
+        text: "Twibbon by Komunitas",
+        color: "#ffffff",
+        background: "rgba(0, 0, 0, 0.6)",
+        font: "14px sans-serif",
+        padding: 10
+      },
+      messages: {
+        invalidTwibbon: "Twibbon harus berupa PNG transparan!",
+        noImage: "Silakan unggah gambar terlebih dahulu!",
+        shareNotSupported: "Fitur berbagi tidak didukung di perangkat ini."
+      },
+      share: {
+        title: "Bergabunglah dalam Kampanye Twibbon Kami!",
+        text: "Saya baru saja membuat Twibbon, ayo kamu juga buat!",
+        filename: "twibbon-saya.png"
+      }
+    };
+
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const watermarkEl = document.getElementById('watermark');
+    const imageInput = document.getElementById('imageInput');
+    const twibbonInput = document.getElementById('twibbonInput');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const shareBtn = document.getElementById('shareBtn');
+    const notice = document.getElementById('notice');
+
+    let userImage = null;
+    let twibbonImage = new Image();
+    twibbonImage.src = config.twibbon.default;
+    twibbonImage.onload = drawCanvas;
+
+    function showNotice(msg) {
+      notice.textContent = msg;
+      notice.style.display = 'block';
+      setTimeout(() => notice.style.display = 'none', 3000);
+    }
+
+    function drawCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (userImage) {
+        const scale = Math.max(canvas.width / userImage.width, canvas.height / userImage.height);
+        const x = (canvas.width / 2) - (userImage.width / 2) * scale;
+        const y = (canvas.height / 2) - (userImage.height / 2) * scale;
+        ctx.drawImage(userImage, x, y, userImage.width * scale, userImage.height * scale);
+      }
+      if (twibbonImage.complete) {
+        ctx.drawImage(twibbonImage, 0, 0, canvas.width, canvas.height);
+      }
+    }
+
+    imageInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file || !config.validation.allowedImageTypes.includes(file.type)) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        userImage = new Image();
+        userImage.onload = () => {
+          drawCanvas();
+          shareBtn.style.display = navigator.canShare ? "inline-block" : "none";
+        };
+        userImage.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    twibbonInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file || file.type !== "image/png") {
+        showNotice(config.messages.invalidTwibbon);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const tempImg = new Image();
+        tempImg.onload = () => {
+          const tempCanvas = document.createElement('canvas');
+          const tempCtx = tempCanvas.getContext('2d');
+          tempCanvas.width = tempImg.width;
+          tempCanvas.height = tempImg.height;
+          tempCtx.drawImage(tempImg, 0, 0);
+          const pixel = tempCtx.getImageData(0, 0, 1, 1).data;
+          const isTransparent = pixel[3] < 255;
+          if (config.twibbon.requireTransparency && !isTransparent) {
+            showNotice(config.messages.invalidTwibbon);
+            return;
+          }
+          twibbonImage = tempImg;
+          drawCanvas();
+        };
+        tempImg.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    downloadBtn.addEventListener('click', () => {
+      if (!userImage) return showNotice(config.messages.noImage);
+      watermarkEl.style.display = 'block';
+      setTimeout(() => {
+        const link = document.createElement('a');
+        link.download = config.share.filename;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        watermarkEl.style.display = 'none';
+      }, 100);
+    });
+
+    shareBtn.addEventListener('click', async () => {
+      if (!userImage) return showNotice(config.messages.noImage);
+      if (!navigator.canShare || !navigator.canShare({ files: [] })) {
+        return showNotice(config.messages.shareNotSupported);
+      }
+
+      watermarkEl.style.display = 'block';
+      setTimeout(async () => {
+        canvas.toBlob(async (blob) => {
+          const file = new File([blob], config.share.filename, { type: 'image/png' });
+          try {
+            await navigator.share({
+              title: config.share.title,
+              text: config.share.text,
+              files: [file],
+            });
+          } catch (err) {
+            console.error("Gagal membagikan:", err);
+          } finally {
+            watermarkEl.style.display = 'none';
+          }
+        });
+      }, 100);
+    });
+  </script>
+</body>
+</html>
