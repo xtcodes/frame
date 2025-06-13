@@ -139,7 +139,12 @@
         userImage.onload = () => {
           resetTransform();
           drawCanvas();
-          shareBtn.style.display = navigator.canShare ? "inline-block" : "none";
+          // Tampilkan tombol bagikan jika didukung
+          if (navigator.canShare && navigator.canShare({ files: [new File([""], "test.png", { type: "image/png" })] })) {
+            shareBtn.style.display = "inline-block";
+          } else {
+            shareBtn.style.display = "none";
+          }
         };
         userImage.src = reader.result;
       };
@@ -246,25 +251,27 @@
 
     shareBtn.addEventListener('click', async () => {
       if (!userImage) return showNotice(config.messages.noImage);
-      if (!navigator.canShare || !navigator.canShare({ files: [] })) {
-        return showNotice(config.messages.shareNotSupported);
-      }
 
-      drawCanvas(true);
-      canvas.toBlob(async (blob) => {
+      try {
+        drawCanvas(true);
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
         const file = new File([blob], config.share.filename, { type: 'image/png' });
-        try {
-          await navigator.share({
-            title: config.share.title,
-            text: config.share.text,
-            files: [file],
-          });
-        } catch (err) {
-          console.error("Gagal membagikan:", err);
-        } finally {
-          drawCanvas();
+
+        if (!navigator.canShare || !navigator.canShare({ files: [file] })) {
+          return showNotice(config.messages.shareNotSupported);
         }
-      });
+
+        await navigator.share({
+          title: config.share.title,
+          text: config.share.text,
+          files: [file],
+        });
+      } catch (err) {
+        console.error("Gagal membagikan:", err);
+        showNotice("Gagal membagikan: " + err.message);
+      } finally {
+        drawCanvas();
+      }
     });
   </script>
 </body>
