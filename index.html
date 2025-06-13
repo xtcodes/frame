@@ -19,16 +19,6 @@
     #controls {
       margin-top: 1rem;
     }
-    #watermark {
-      position: absolute;
-      bottom: 10px;
-      right: 10px;
-      background: rgba(0, 0, 0, 0.6);
-      color: #fff;
-      padding: 5px 10px;
-      font: 14px sans-serif;
-      display: none;
-    }
     #notice {
       background: rgba(0, 0, 0, 0.7);
       color: white;
@@ -47,9 +37,8 @@
 
   <div id="notice"></div>
 
-  <div style="position: relative; display: inline-block;">
+  <div>
     <canvas id="canvas" width="800" height="800"></canvas>
-    <div id="watermark">Twibbon by Komunitas</div>
   </div>
 
   <div id="controls">
@@ -85,7 +74,6 @@
 
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
-    const watermarkEl = document.getElementById('watermark');
     const imageInput = document.getElementById('imageInput');
     const twibbonInput = document.getElementById('twibbonInput');
     const downloadBtn = document.getElementById('downloadBtn');
@@ -95,18 +83,14 @@
     let userImage = null;
     let twibbonImage = new Image();
     let isInteracting = false;
-
-    // Transform control
     let offsetX = 0, offsetY = 0;
     let lastX = 0, lastY = 0;
     let scale = 1;
     let lastDist = 0;
-
-    let dragging = false;
     let pointers = [];
 
     twibbonImage.src = config.twibbon.default;
-    twibbonImage.onload = drawCanvas;
+    twibbonImage.onload = () => drawCanvas();
 
     function showNotice(msg) {
       notice.textContent = msg;
@@ -114,7 +98,7 @@
       setTimeout(() => notice.style.display = 'none', 3000);
     }
 
-    function drawCanvas() {
+    function drawCanvas(withWatermark = false) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       if (userImage) {
         const iw = userImage.width * scale;
@@ -128,6 +112,21 @@
         ctx.globalAlpha = isInteracting ? 0.5 : 1.0;
         ctx.drawImage(twibbonImage, 0, 0, canvas.width, canvas.height);
         ctx.globalAlpha = 1.0;
+      }
+
+      if (withWatermark) {
+        const padding = config.watermark.padding;
+        ctx.fillStyle = config.watermark.background;
+        ctx.font = config.watermark.font;
+        const text = config.watermark.text;
+        const textMetrics = ctx.measureText(text);
+        const boxWidth = textMetrics.width + padding * 2;
+        const boxHeight = 20 + padding * 2;
+        const x = canvas.width - boxWidth - 10;
+        const y = canvas.height - boxHeight - 10;
+        ctx.fillRect(x, y, boxWidth, boxHeight);
+        ctx.fillStyle = config.watermark.color;
+        ctx.fillText(text, x + padding, y + boxHeight - padding - 4);
       }
     }
 
@@ -182,7 +181,6 @@
       scale = 1;
     }
 
-    // Pointer Events
     canvas.addEventListener("pointerdown", (e) => {
       canvas.setPointerCapture(e.pointerId);
       pointers.push(e);
@@ -229,7 +227,6 @@
       return Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
     }
 
-    // Zoom via mouse scroll
     canvas.addEventListener("wheel", (e) => {
       e.preventDefault();
       const delta = e.deltaY < 0 ? 1.1 : 0.9;
@@ -239,14 +236,12 @@
 
     downloadBtn.addEventListener('click', () => {
       if (!userImage) return showNotice(config.messages.noImage);
-      watermarkEl.style.display = 'block';
-      setTimeout(() => {
-        const link = document.createElement('a');
-        link.download = config.share.filename;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-        watermarkEl.style.display = 'none';
-      }, 100);
+      drawCanvas(true);
+      const link = document.createElement('a');
+      link.download = config.share.filename;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      drawCanvas();
     });
 
     shareBtn.addEventListener('click', async () => {
@@ -255,23 +250,21 @@
         return showNotice(config.messages.shareNotSupported);
       }
 
-      watermarkEl.style.display = 'block';
-      setTimeout(async () => {
-        canvas.toBlob(async (blob) => {
-          const file = new File([blob], config.share.filename, { type: 'image/png' });
-          try {
-            await navigator.share({
-              title: config.share.title,
-              text: config.share.text,
-              files: [file],
-            });
-          } catch (err) {
-            console.error("Gagal membagikan:", err);
-          } finally {
-            watermarkEl.style.display = 'none';
-          }
-        });
-      }, 100);
+      drawCanvas(true);
+      canvas.toBlob(async (blob) => {
+        const file = new File([blob], config.share.filename, { type: 'image/png' });
+        try {
+          await navigator.share({
+            title: config.share.title,
+            text: config.share.text,
+            files: [file],
+          });
+        } catch (err) {
+          console.error("Gagal membagikan:", err);
+        } finally {
+          drawCanvas();
+        }
+      });
     });
   </script>
 </body>
