@@ -107,6 +107,7 @@ shareNotSupported: "Fitur berbagi tidak didukung di perangkat ini."
 share: {
 title: "Bergabunglah dalam Kampanye Twibbon Kami!",
 text: "Saya baru saja membuat Twibbon, ayo kamu juga buat!",
+url: "https://xtcodes.github.io/frame/",
 filename: "twibbon-saya.png"
 }
 };
@@ -305,6 +306,7 @@ return showNotice(config.messages.shareNotSupported);
 await navigator.share({
 title: config.share.title,
 text: config.share.text,
+url: config.share.url,
 files: [file]
 });
 } catch (err) {
