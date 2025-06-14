@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Twibbon Creator</title>
 <style>
+button, label, canvas, div {
+box-sizing: border-box;
+}
 body {
 margin: 0;
 padding: 2em;
@@ -40,6 +43,20 @@ z-index: 9999;
 display: none;
 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
+.btn {
+font-size: 13px;
+text-decoration: none;
+cursor: pointer;
+color: #669ada;
+padding: 10px 20px;
+border-radius: 50px;
+border: 1px solid;
+display: block;
+text-align: center;
+}
+.btn[href=''] {
+display: none;
+}
 @media (max-width: 700px) {
 main {
 margin: 0 auto;
@@ -51,10 +68,16 @@ width: auto;
 <body>
 <main>
 <h1>Twibbon Creator</h1>
-
+<label class="btn">
 <input type="file" id="imageInput" accept="image/jpeg,image/png">
-<input type="file" id="twibbonInput" accept="image/png">
+Pilih Gambar
+</label>
 
+<label class="btn">
+<input type="file" id="twibbonInput" accept="image/png">
+Pilih Twibbon
+</label>
+  
 <div id="notice"></div>
 
 <canvas id="canvas" width="800" height="800"></canvas>
