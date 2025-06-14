@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Twibbon Step-by-Step</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f5f5f5;
+    }
+    .container {
+      max-width: 500px;
+      margin: auto;
+      padding: 20px;
+      background: #fff;
+      box-shadow: 0 0 10px #ccc;
+    }
+    h2 {
+      text-align: center;
+      margin-top: 0;
+    }
+    .step {
+      display: none;
+    }
+    .step.active {
+      display: block;
+    }
+    .controls {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .preview-wrapper {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1/1;
+      overflow: hidden;
+      background: #eee;
+    }
+    canvas {
+      width: 100%;
+      height: auto;
+    }
+    .watermark {
+      position: absolute;
+      bottom: 5px;
+      right: 5px;
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      padding: 4px 8px;
+      font-size: 12px;
+      border-radius: 4px;
+      pointer-events: none;
+    }
+    input[type="file"] {
+      margin-top: 10px;
+    }
+    button {
+      padding: 10px 16px;
+      margin: 5px;
+      font-size: 16px;
+    }
+    #canvas-container {
+      touch-action: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Twibbon Step-by-Step</h2>
+
+    <!-- Step 1 -->
+    <div class="step active" id="step1">
+      <p>1. Unggah foto Anda:</p>
+      <input type="file" id="fotoInput" accept="image/*">
+      <div class="controls">
+        <button onclick="nextStep(1)">Lanjut</button>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="step" id="step2">
+      <p>2. Pilih atau unggah Twibbon:</p>
+      <input type="file" id="twibbonInput" accept="image/*"><br/>
+      <p>Atau gunakan Twibbon default:</p>
+      <button onclick="useDefaultTwibbon()">Gunakan Default</button>
+      <div class="controls">
+        <button onclick="prevStep(2)">Kembali</button>
+        <button onclick="nextStep(2)">Lanjut</button>
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="step" id="step3">
+      <p>3. Atur foto Anda:</p>
+      <div id="canvas-container" class="preview-wrapper">
+        <canvas id="previewCanvas" width="800" height="800"></canvas>
+        <div class="watermark" id="watermark">© TwibbonKu</div>
+      </div>
+      <div class="controls">
+        <button onclick="prevStep(3)">Kembali</button>
+        <button onclick="nextStep(3)">Lanjut</button>
+      </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="step" id="step4">
+      <p>4. Unduh atau Bagikan hasil:</p>
+      <div class="preview-wrapper">
+        <canvas id="finalCanvas" width="800" height="800"></canvas>
+      </div>
+      <div class="controls">
+        <button onclick="prevStep(4)">Kembali</button>
+        <button onclick="downloadImage()">Unduh</button>
+        <button onclick="shareImage()">Bagikan</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const steps = document.querySelectorAll(".step");
+    const previewCanvas = document.getElementById("previewCanvas");
+    const finalCanvas = document.getElementById("finalCanvas");
+    const ctx = previewCanvas.getContext("2d");
+    const finalCtx = finalCanvas.getContext("2d");
+    const watermark = document.getElementById("watermark");
+
+    let foto = null;
+    let twibbon = null;
+    let pos = { x: 0, y: 0, scale: 1 };
+    let isDragging = false;
+    let start = {};
+
+    function nextStep(current) {
+      if (current === 1 && !foto) return alert("Unggah foto terlebih dahulu.");
+      if (current === 2 && !twibbon) return alert("Pilih atau unggah twibbon terlebih dahulu.");
+      if (current === 3) generateFinal();
+      steps[current - 1].classList.remove("active");
+      steps[current].classList.add("active");
+    }
+
+    function prevStep(current) {
+      steps[current - 1].classList.remove("active");
+      steps[current - 2].classList.add("active");
+    }
+
+    document.getElementById("fotoInput").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const img = new Image();
+      img.onload = () => {
+        foto = img;
+        drawCanvas();
+      };
+      img.src = URL.createObjectURL(file);
+    });
+
+    document.getElementById("twibbonInput").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const img = new Image();
+      img.onload = () => {
+        twibbon = img;
+        drawCanvas();
+      };
+      img.src = URL.createObjectURL(file);
+    });
+
+    function useDefaultTwibbon() {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        twibbon = img;
+        drawCanvas();
+      };
+      img.src = "https://i.ibb.co/WGf9ybV/twibbon-default.png"; // Ganti dengan URL twibbon default kamu
+    }
+
+    function drawCanvas() {
+      ctx.clearRect(0, 0, 800, 800);
+      if (foto) {
+        const w = foto.width * pos.scale;
+        const h = foto.height * pos.scale;
+        ctx.drawImage(foto, pos.x, pos.y, w, h);
+      }
+      if (twibbon) {
+        ctx.drawImage(twibbon, 0, 0, 800, 800);
+      }
+    }
+
+    function generateFinal() {
+      finalCtx.clearRect(0, 0, 800, 800);
+      if (foto) {
+        const w = foto.width * pos.scale;
+        const h = foto.height * pos.scale;
+        finalCtx.drawImage(foto, pos.x, pos.y, w, h);
+      }
+      if (twibbon) {
+        finalCtx.drawImage(twibbon, 0, 0, 800, 800);
+      }
+      // Tambahkan watermark di hasil akhir
+      finalCtx.fillStyle = "rgba(0,0,0,0.5)";
+      finalCtx.fillRect(600, 760, 180, 30);
+      finalCtx.fillStyle = "white";
+      finalCtx.font = "16px Arial";
+      finalCtx.fillText("© TwibbonKu", 610, 780);
+    }
+
+    // Drag & Zoom support
+    const canvasContainer = document.getElementById("canvas-container");
+    canvasContainer.addEventListener("pointerdown", (e) => {
+      isDragging = true;
+      start = { x: e.clientX, y: e.clientY, px: pos.x, py: pos.y };
+    });
+    canvasContainer.addEventListener("pointermove", (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - start.x;
+      const dy = e.clientY - start.y;
+      pos.x = start.px + dx;
+      pos.y = start.py + dy;
+      drawCanvas();
+    });
+    canvasContainer.addEventListener("pointerup", () => isDragging = false);
+    canvasContainer.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.05 : -0.05;
+      pos.scale = Math.max(0.2, pos.scale + delta);
+      drawCanvas();
+    });
+
+    function downloadImage() {
+      const link = document.createElement("a");
+      link.download = "twibbon-ku.png";
+      link.href = finalCanvas.toDataURL("image/png");
+      link.click();
+    }
+
+    async function shareImage() {
+      if (!navigator.canShare || !navigator.canShare({ files: [] })) {
+        alert("Web Share API tidak didukung di perangkat ini.");
+        return;
+      }
+      finalCanvas.toBlob(async (blob) => {
+        const file = new File([blob], "twibbon-ku.png", { type: "image/png" });
+        try {
+          await navigator.share({
+            title: "Twibbon-ku",
+            text: "Lihat hasil Twibbon saya!",
+            files: [file],
+          });
+        } catch (e) {
+          console.log("Share gagal", e);
+        }
+      });
+    }
+  </script>
+</body>
+</html>
