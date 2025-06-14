@@ -137,170 +137,166 @@
     </div>
   </div>
 
-  <script>
-    const steps = document.querySelectorAll(".step");
-    const previewCanvas = document.getElementById("previewCanvas");
-    const finalCanvas = document.getElementById("finalCanvas");
-    const ctx = previewCanvas.getContext("2d");
-    const finalCtx = finalCanvas.getContext("2d");
-    const watermarkDiv = document.getElementById("watermark");
+      <script>
+  const previewCanvas = document.getElementById("previewCanvas");
+  const ctx = previewCanvas.getContext("2d");
+  const finalCanvas = document.getElementById("finalCanvas");
+  const finalCtx = finalCanvas.getContext("2d");
 
-    let foto = null;
-    let twibbon = null;
-    let config = { twibbon: "", watermark: "© TwibbonKu" };
+  let foto = null, twibbon = null;
+  let config = { twibbon: "", watermark: "© TwibbonKu" };
 
-    fetch("config.json")
-      .then((res) => res.json())
-      .then((data) => { config = data; watermarkDiv.textContent = config.watermark; })
-      .catch((err) => console.warn("Gagal memuat config.json:", err));
+  fetch("config.json")
+    .then(res => res.json())
+    .then(data => {
+      config = data;
+      document.getElementById("watermark").textContent = config.watermark;
+    })
+    .catch(err => console.warn("Gagal memuat config.json:", err));
 
-    function nextStep(current) {
-      if (current === 1 && !foto) return alert("Unggah foto terlebih dahulu.");
-      if (current === 2 && !twibbon) return alert("Pilih atau unggah twibbon terlebih dahulu.");
-      if (current === 3) generateFinal();
-      steps[current - 1].classList.remove("active");
-      steps[current].classList.add("active");
-    }
+  const transform = { x: 0, y: 0, scale: 1 };
+  const pointers = new Map();
+  let isDragging = false;
+  let lastDist = 0;
 
-    function prevStep(current) {
-      steps[current - 1].classList.remove("active");
-      steps[current - 2].classList.add("active");
-    }
+  previewCanvas.addEventListener("pointerdown", e => {
+    previewCanvas.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  });
 
-    document.getElementById("fotoInput").addEventListener("change", (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const img = new Image();
-      img.onload = () => { foto = img; drawCanvas(); };
-      img.src = URL.createObjectURL(file);
-    });
+  previewCanvas.addEventListener("pointermove", e => {
+    if (!pointers.has(e.pointerId)) return;
+    const prev = pointers.get(e.pointerId);
+    const curr = { x: e.clientX, y: e.clientY };
+    pointers.set(e.pointerId, curr);
 
-    document.getElementById("twibbonInput").addEventListener("change", (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const img = new Image();
-      img.onload = () => { twibbon = img; drawCanvas(); };
-      img.src = URL.createObjectURL(file);
-    });
-
-    function useDefaultTwibbon() {
-      if (!config.twibbon) return alert("Twibbon default tidak tersedia.");
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => { twibbon = img; drawCanvas(); };
-      img.src = config.twibbon;
-    }
-
-    let transform = {
-      x: 0, y: 0,
-      scale: 1,
-      startX: 0, startY: 0,
-      startDist: 0,
-      isDragging: false,
-      isZooming: false
-    };
-
-    const activePointers = new Map();
-    previewCanvas.addEventListener("pointerdown", (e) => {
-      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (activePointers.size === 1) {
-        const p = activePointers.get(e.pointerId);
-        transform.startX = p.x - transform.x;
-        transform.startY = p.y - transform.y;
-        transform.isDragging = true;
-      } else if (activePointers.size === 2) {
-        const [p1, p2] = Array.from(activePointers.values());
-        transform.startDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-        transform.isZooming = true;
-      }
-    });
-
-    previewCanvas.addEventListener("pointermove", (e) => {
-      if (!activePointers.has(e.pointerId)) return;
-      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (transform.isZooming && activePointers.size === 2) {
-        const [p1, p2] = Array.from(activePointers.values());
-        const newDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-        const scaleChange = newDist / transform.startDist;
+    if (pointers.size === 1) {
+      // Geser 1 jari
+      transform.x += curr.x - prev.x;
+      transform.y += curr.y - prev.y;
+    } else if (pointers.size === 2) {
+      // Zoom 2 jari
+      const [p1, p2] = Array.from(pointers.values());
+      const newDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+      if (lastDist) {
+        const scaleChange = newDist / lastDist;
         transform.scale = Math.min(5, Math.max(0.5, transform.scale * scaleChange));
-        transform.startDist = newDist;
-        drawCanvas();
-      } else if (transform.isDragging && activePointers.size === 1) {
-        const p = activePointers.get(e.pointerId);
-        transform.x = p.x - transform.startX;
-        transform.y = p.y - transform.startY;
-        drawCanvas();
+      }
+      lastDist = newDist;
+    }
+    drawCanvas();
+  });
+
+  const removePointer = (e) => {
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) lastDist = 0;
+  };
+
+  previewCanvas.addEventListener("pointerup", removePointer);
+  previewCanvas.addEventListener("pointercancel", removePointer);
+
+  document.getElementById("canvas-container").addEventListener("wheel", e => {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 1.05 : 0.95;
+    transform.scale = Math.min(5, Math.max(0.5, transform.scale * delta));
+    drawCanvas();
+  });
+
+  document.getElementById("canvas-container").addEventListener("touchmove", e => {
+    if (e.touches.length >= 2) e.preventDefault();
+  }, { passive: false });
+
+  function drawCanvas() {
+    ctx.clearRect(0, 0, 800, 800);
+    ctx.save();
+    ctx.translate(transform.x, transform.y);
+    ctx.scale(transform.scale, transform.scale);
+    if (foto) ctx.drawImage(foto, 0, 0, 800, 800);
+    ctx.restore();
+    if (twibbon) ctx.drawImage(twibbon, 0, 0, 800, 800);
+  }
+
+  function generateFinal() {
+    finalCtx.clearRect(0, 0, 800, 800);
+    finalCtx.save();
+    finalCtx.translate(transform.x, transform.y);
+    finalCtx.scale(transform.scale, transform.scale);
+    if (foto) finalCtx.drawImage(foto, 0, 0, 800, 800);
+    finalCtx.restore();
+    if (twibbon) finalCtx.drawImage(twibbon, 0, 0, 800, 800);
+
+    finalCtx.fillStyle = "rgba(0,0,0,0.5)";
+    finalCtx.fillRect(600, 760, 180, 30);
+    finalCtx.fillStyle = "white";
+    finalCtx.font = "16px Arial";
+    finalCtx.fillText(config.watermark, 610, 780);
+  }
+
+  function useDefaultTwibbon() {
+    if (!config.twibbon) return alert("Twibbon default tidak tersedia.");
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => { twibbon = img; drawCanvas(); };
+    img.src = config.twibbon;
+  }
+
+  document.getElementById("fotoInput").addEventListener("change", e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const img = new Image();
+    img.onload = () => { foto = img; drawCanvas(); };
+    img.src = URL.createObjectURL(file);
+  });
+
+  document.getElementById("twibbonInput").addEventListener("change", e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const img = new Image();
+    img.onload = () => { twibbon = img; drawCanvas(); };
+    img.src = URL.createObjectURL(file);
+  });
+
+  function downloadImage() {
+    const a = document.createElement("a");
+    a.download = "twibbon-ku.png";
+    a.href = finalCanvas.toDataURL("image/png");
+    a.click();
+  }
+
+  async function shareImage() {
+    if (!navigator.canShare || !navigator.canShare({ files: [] })) {
+      alert("Web Share API tidak didukung.");
+      return;
+    }
+    finalCanvas.toBlob(async blob => {
+      const file = new File([blob], "twibbon-ku.png", { type: "image/png" });
+      try {
+        await navigator.share({
+          title: "Twibbon-ku",
+          text: "Lihat hasil Twibbon saya!",
+          files: [file],
+        });
+      } catch (e) {
+        console.warn("Share dibatalkan atau gagal", e);
       }
     });
+  }
 
-    previewCanvas.addEventListener("pointerup", (e) => {
-      activePointers.delete(e.pointerId);
-      transform.isDragging = false;
-      transform.isZooming = false;
-    });
-    previewCanvas.addEventListener("pointercancel", (e) => {
-      activePointers.delete(e.pointerId);
-      transform.isDragging = false;
-      transform.isZooming = false;
-    });
+  function nextStep(n) {
+    const steps = document.querySelectorAll(".step");
+    if (n === 1 && !foto) return alert("Unggah foto terlebih dahulu.");
+    if (n === 2 && !twibbon) return alert("Pilih atau unggah twibbon terlebih dahulu.");
+    if (n === 3) generateFinal();
+    steps[n - 1].classList.remove("active");
+    steps[n].classList.add("active");
+  }
 
-    document.getElementById("canvas-container").addEventListener("wheel", (e) => {
-      e.preventDefault();
-      const zoom = e.deltaY < 0 ? 1.05 : 0.95;
-      transform.scale = Math.min(5, Math.max(0.5, transform.scale * zoom));
-      drawCanvas();
-    });
+  function prevStep(n) {
+    const steps = document.querySelectorAll(".step");
+    steps[n - 1].classList.remove("active");
+    steps[n - 2].classList.add("active");
+  }
+</script>
 
-    function drawCanvas() {
-      ctx.clearRect(0, 0, 800, 800);
-      ctx.save();
-      ctx.translate(transform.x, transform.y);
-      ctx.scale(transform.scale, transform.scale);
-      if (foto) ctx.drawImage(foto, 0, 0, 800, 800);
-      ctx.restore();
-      if (twibbon) ctx.drawImage(twibbon, 0, 0, 800, 800);
-    }
-
-    function generateFinal() {
-      finalCtx.clearRect(0, 0, 800, 800);
-      finalCtx.save();
-      finalCtx.translate(transform.x, transform.y);
-      finalCtx.scale(transform.scale, transform.scale);
-      if (foto) finalCtx.drawImage(foto, 0, 0, 800, 800);
-      finalCtx.restore();
-      if (twibbon) finalCtx.drawImage(twibbon, 0, 0, 800, 800);
-      finalCtx.fillStyle = "rgba(0,0,0,0.5)";
-      finalCtx.fillRect(600, 760, 180, 30);
-      finalCtx.fillStyle = "white";
-      finalCtx.font = "16px Arial";
-      finalCtx.fillText(config.watermark, 610, 780);
-    }
-
-    function downloadImage() {
-      const link = document.createElement("a");
-      link.download = "twibbon-ku.png";
-      link.href = finalCanvas.toDataURL("image/png");
-      link.click();
-    }
-
-    async function shareImage() {
-      if (!navigator.canShare || !navigator.canShare({ files: [] })) {
-        alert("Web Share API tidak didukung di perangkat ini.");
-        return;
-      }
-      finalCanvas.toBlob(async (blob) => {
-        const file = new File([blob], "twibbon-ku.png", { type: "image/png" });
-        try {
-          await navigator.share({
-            title: "Twibbon-ku",
-            text: "Lihat hasil Twibbon saya!",
-            files: [file],
-          });
-        } catch (e) {
-          console.log("Share gagal", e);
-        }
-      });
-    }
-  </script>
 </body>
 </html>
