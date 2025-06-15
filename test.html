@@ -149,10 +149,7 @@
 
     fetch("config.json")
       .then(res => res.json())
-      .then(data => {
-        config = data;
-        document.getElementById("watermark").textContent = config.watermark;
-      })
+      .then(data => config = data)
       .catch(err => console.warn("Gagal memuat config.json:", err));
 
     const transform = { x: 0, y: 0, scale: 1 };
@@ -214,21 +211,49 @@
       if (twibbon) ctx.drawImage(twibbon, 0, 0, 800, 800);
     }
 
-    function generateFinal() {
-      finalCtx.clearRect(0, 0, 800, 800);
-      finalCtx.save();
-      finalCtx.translate(transform.x, transform.y);
-      finalCtx.scale(transform.scale, transform.scale);
-      if (foto) finalCtx.drawImage(foto, 0, 0, 800, 800);
-      finalCtx.restore();
-      if (twibbon) finalCtx.drawImage(twibbon, 0, 0, 800, 800);
+    function renderToCanvas(canvas) {
+      const ctx2 = canvas.getContext("2d");
+      ctx2.clearRect(0, 0, 800, 800);
+      ctx2.save();
+      ctx2.translate(transform.x, transform.y);
+      ctx2.scale(transform.scale, transform.scale);
+      if (foto) ctx2.drawImage(foto, 0, 0, 800, 800);
+      ctx2.restore();
+      if (twibbon) ctx2.drawImage(twibbon, 0, 0, 800, 800);
+      // Watermark hanya saat export
+      ctx2.fillStyle = "rgba(0,0,0,0.5)";
+      ctx2.fillRect(600, 760, 180, 30);
+      ctx2.fillStyle = "white";
+      ctx2.font = "16px Arial";
+      ctx2.fillText(config.watermark, 610, 780);
+    }
 
-      // Tampilkan watermark HANYA di final image
-      finalCtx.fillStyle = "rgba(0,0,0,0.5)";
-      finalCtx.fillRect(600, 760, 180, 30);
-      finalCtx.fillStyle = "white";
-      finalCtx.font = "16px Arial";
-      finalCtx.fillText(config.watermark, 610, 780);
+    function downloadImage() {
+      renderToCanvas(finalCanvas);
+      const a = document.createElement("a");
+      a.download = "twibbon-ku.png";
+      a.href = finalCanvas.toDataURL("image/png");
+      a.click();
+    }
+
+    async function shareImage() {
+      renderToCanvas(finalCanvas);
+      if (!navigator.canShare || !navigator.canShare({ files: [] })) {
+        alert("Web Share API tidak didukung.");
+        return;
+      }
+      finalCanvas.toBlob(async blob => {
+        const file = new File([blob], "twibbon-ku.png", { type: "image/png" });
+        try {
+          await navigator.share({
+            title: "Twibbon-ku",
+            text: "Lihat hasil Twibbon saya!",
+            files: [file],
+          });
+        } catch (e) {
+          console.warn("Share dibatalkan atau gagal", e);
+        }
+      });
     }
 
     function useDefaultTwibbon() {
@@ -255,37 +280,10 @@
       img.src = URL.createObjectURL(file);
     });
 
-    function downloadImage() {
-      const a = document.createElement("a");
-      a.download = "twibbon-ku.png";
-      a.href = finalCanvas.toDataURL("image/png");
-      a.click();
-    }
-
-    async function shareImage() {
-      if (!navigator.canShare || !navigator.canShare({ files: [] })) {
-        alert("Web Share API tidak didukung.");
-        return;
-      }
-      finalCanvas.toBlob(async blob => {
-        const file = new File([blob], "twibbon-ku.png", { type: "image/png" });
-        try {
-          await navigator.share({
-            title: "Twibbon-ku",
-            text: "Lihat hasil Twibbon saya!",
-            files: [file],
-          });
-        } catch (e) {
-          console.warn("Share dibatalkan atau gagal", e);
-        }
-      });
-    }
-
     function nextStep(n) {
       const steps = document.querySelectorAll(".step");
       if (n === 1 && !foto) return alert("Unggah foto terlebih dahulu.");
       if (n === 2 && !twibbon) return alert("Pilih atau unggah twibbon terlebih dahulu.");
-      if (n === 3) generateFinal();
       steps[n - 1].classList.remove("active");
       steps[n].classList.add("active");
     }
@@ -295,7 +293,6 @@
       steps[n - 1].classList.remove("active");
       steps[n - 2].classList.add("active");
     }
-      </script>
-
+   </script>
 </body>
 </html>
