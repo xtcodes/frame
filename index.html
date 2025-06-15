@@ -60,7 +60,7 @@ background-color: #d8dee4;
 input[type="file"] {
 display: none;
 }
-button {
+button, label {
 width: 100%;
 padding: 0.75rem 1rem;
 font-size: 1rem;
@@ -70,7 +70,7 @@ border: 1px solid #d1d5db;
 background: white;
 transition: 0.3s ease;
 }
-button:hover {
+button:hover, label:hover {
 border-color: #2563eb;
 background-color: #eff6ff;
 }
@@ -98,7 +98,7 @@ width: auto;
 Pilih Gambar
 </label>
 
-<label class="primary">
+<label class="">
 <input type="file" id="twibbonInput" accept="image/png">
 Pilih Twibbon
 </label>
@@ -108,7 +108,7 @@ Pilih Twibbon
 <canvas id="canvas" width="800" height="800"></canvas>
 
 <div id="controls">
-<button class="primary" id="downloadBtn">Unduh Twibbon</button>
+<button class="" id="downloadBtn">Unduh Twibbon</button>
 <button id="shareBtn" style="display: none;">Bagikan</button>
 </div>
 </main>
