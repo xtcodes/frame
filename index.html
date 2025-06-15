@@ -42,25 +42,11 @@ z-index: 9999;
 display: none;
 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
-/*
-.btn {
-font-size: 16px;
-padding: 10px;
-box-shadow: 0 1px 0 rgba(27, 31, 36, 0.1);
-border: 1px solid #d0d7de;
-border-radius: 4px;
-background: #f1f1f1; 
-display: inline-block;
-color: #333;
-}
-.btn:hover {
-background-color: #d8dee4;
-}
-*/
+
 input[type="file"] {
 display: none;
 }
-button, label {
+button, .btn {
 width: 100%;
 padding: 0.75rem 1rem;
 font-size: 1rem;
@@ -70,7 +56,7 @@ border: 1px solid #d1d5db;
 background: white;
 transition: 0.3s ease;
 }
-button:hover, label:hover {
+button:hover, .btn:hover {
 border-color: #2563eb;
 background-color: #eff6ff;
 }
@@ -93,12 +79,12 @@ width: auto;
 <body>
 <main>
 <h1>Twibbon Creator</h1>
-<label class="primary">
+<label class="btn">
 <input type="file" id="imageInput" accept="image/jpeg,image/png">
 Pilih Gambar
 </label>
 
-<label class="">
+<label class="btn">
 <input type="file" id="twibbonInput" accept="image/png">
 Pilih Twibbon
 </label>
@@ -108,7 +94,7 @@ Pilih Twibbon
 <canvas id="canvas" width="800" height="800"></canvas>
 
 <div id="controls">
-<button class="" id="downloadBtn">Unduh Twibbon</button>
+<button class="primary" id="downloadBtn">Unduh Twibbon</button>
 <button id="shareBtn" style="display: none;">Bagikan</button>
 </div>
 </main>
